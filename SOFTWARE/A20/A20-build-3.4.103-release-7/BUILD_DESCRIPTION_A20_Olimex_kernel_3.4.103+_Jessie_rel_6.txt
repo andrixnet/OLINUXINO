@@ -3,6 +3,58 @@ A20-OLinuXino-LIME2 boards with sunxi kernel 3.4.103 and Linux Debian Jessie fil
 
 ---
 
+Chapter 0. Setting up the build environment
+
+---
+
+The build environment setup instructions are for Debian (or Debian family) of Linux distribution.
+They may be adjusted for other distributions as well, however, if you use a different flavour or Linux, 
+the best recommendation would be to create a development virtual machine (using either VMware, VirtualBox, 
+KVM via Qemu or Virt-Manager, etc). The same goes for Windows users attempting to build the Olinuxino kernel.
+
+For the purpose of this document the following setup was used: 
+- a virtual machine with 1CPU, 2GB RAM, 20GB virtual HDD, 1 NIC for internet access
+- Debian 7.11.0 (Wheezy) installed using DVD install ISO from https://cdimage.debian.org/cdimage/archive/7.11.0/
+Choose "amd64" for 64bit capable CPU or "i386" for 32 bit capable CPU according to your computer's CPU capabilities.
+For example https://cdimage.debian.org/cdimage/archive/7.11.0/amd64/iso-dvd/debian-7.11.0-amd64-DVD-1.iso
+The first DVD is sufficient.
+
+Install Debian using the defaults suggested by the installation process and select only 
+base system and ssh as components. (graphical desktop not really needed).
+
+During installation you have created a regular user account. Remember this account. 
+(if you are using Debian as your regular workstation, make sure you have sudo installed and that you have 
+sudo access, then skip to Chapter 1.)
+(if you plan on using the `root` user directly, skip to Chapter 1. and run all commands directly, without sudo)
+
+WARNING!!!
+==========
+The toolchain is not available for newer versions of Debian, this works only for version 7.
+At the time of writing (2017-11-10) Debian 7 is still under active support and updates available online via
+the regular channels. 
+
+You may want to comment out all `deb cdrom:` lines in /etc/apt/sources.list to use only online resources.
+
+Login as root into your new system and install sudo package:
+
+# apt-get install sudo
+
+Allow your regular user sudo access by adding it to the `sudo` group:
+
+# usermod -G sudo username
+
+If you have better facilities for console copy/paste via ssh client, rather then 
+the virtual machine console, determine it's IP address (might be dynamically allocated with each session)
+using the following command (as root):
+
+# ip a
+
+Look for the device `eth0` and the corresponding line starting with `inet`.
+Then use that IP address for your ssh client.
+
+
+---
+
 Chapter 1. Setting up the software tools
 
 ---
@@ -20,21 +72,51 @@ Next update apt-get links by typing:
 
 # apt-get update
 
+Next install the pre-requisites (from official Debian repositories):
+
+# apt-get install ncurses-dev build-essential git
+
+Add the Embedian repository by appending the following line to /etc/apt/sources.list : 
+
+deb http://www.emdebian.org/debian squeeze main
+
+Next update apt-get links by typing:
+
+# apt-get update
+
+It will complain about missing public keys to verify emdebian.org repository.
+Add the emdebian archive keys by typing: 
+
+# apt-get install emdebian-archive-keyring
+# apt-get update
+
+Running the update will show an error: REVKEYSIG B5B7720097BB3B58 Emdebian Archive Signing Key
+This is correct, according to https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=796331 the Emdebian
+project was halted as of July 2014.
+The package manager won't find the proper tools at this stage, so add this line to /etc/apt/sources.list :
+
+deb http://www.emdebian.org/debian unstable main
+
+Next update apt-get links by typing:
+
+# apt-get update
+
 Next install the same compiler toolchain that we used here by typing the following:
 
-# apt-get install gcc-4.7-arm-linux-gnueabihf ncurses-dev uboot-mkimage build-essential git
+# apt-get install gcc-4.7-arm-linux-gnueabihf uboot-mkimage
 
 This will install: GCC compiler used to compile the kernel; the kernel config menu; the uboot make image that
 is required to allow the SD card to boot into the Linux image; GIT that allows you to download from the github
 which holds source code for some of the system; some other tools for building the kernel.
 
-Note that if you use debian may be you will need to add:
+You may need to manually make these symlinks: 
 
-deb http://www.emdebian.org/debian squeeze main
-
-in the file below:
-
-/etc/apt/sources.list
+# ln -s /usr/bin/arm-linux-gnueabihf-cpp-4.7 /usr/bin/arm-linux-gnueabihf-cpp
+# ln -s /usr/bin/arm-linux-gnueabihf-gcc-4.7 /usr/bin/arm-linux-gnueabihf-gcc
+# ln -s /usr/bin/arm-linux-gnueabihf-gcc-ar-4.7 /usr/bin/arm-linux-gnueabihf-gcc-ar
+# ln -s /usr/bin/arm-linux-gnueabihf-gcc-nm-4.7 /usr/bin/arm-linux-gnueabihf-gcc-nm
+# ln -s /usr/bin/arm-linux-gnueabihf-gcc-ranlib-4.7 /usr/bin/arm-linux-gnueabihf-gcc-ranlib
+# ln -s /usr/bin/arm-linux-gnueabihf-gcov-4.7 /usr/bin/arm-linux-gnueabihf-gcov
 
 You would also need a torrent client. It is required to be able to download the file system. Any torrent
 client would do the job, as long as it can process .torrent files.
