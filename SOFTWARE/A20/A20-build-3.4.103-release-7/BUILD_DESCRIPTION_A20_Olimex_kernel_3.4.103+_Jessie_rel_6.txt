@@ -3,6 +3,65 @@ A20-OLinuXino-LIME2 boards with sunxi kernel 3.4.103 and Linux Debian Jessie fil
 
 ---
 
+Chapter 0. Setting up the build environment
+
+---
+
+The build environment setup instructions are for Debian (or Debian family) of Linux distribution.
+They may be adjusted for other distributions as well, however, if you use a different flavour or Linux, 
+the best recommendation would be to create a development virtual machine (using either VMware, VirtualBox, 
+KVM via Qemu or Virt-Manager, etc). The same goes for Windows users attempting to build the Olinuxino kernel.
+
+For the purpose of this document the following setup was used: 
+- a virtual machine with 1CPU, 2GB RAM, 20GB virtual HDD, 1 NIC for internet access
+- Debian 8.9 (Jessie) installed using CD install ISO from https://cdimage.debian.org/cdimage/archive/8.9.0/
+Choose "amd64" for 64bit capable CPU or "i386" for 32 bit capable CPU according to your computer's CPU capabilities.
+Use the net installer image.
+For example https://cdimage.debian.org/cdimage/archive/8.9.0/amd64/iso-cd/debian-8.9.0-amd64-netinst.iso
+
+Note:
+***************************************************************************
+These instructions have also been tested on Debian 9.2 (Stretch) from  
+https://cdimage.debian.org/cdimage/archive/9.2.0/amd64/iso-cd/debian-9.2.0-amd64-netinst.iso
+***************************************************************************
+
+Install Debian using the defaults suggested by the installation process and select only 
+base system and ssh as components. (graphical desktop not really needed).
+
+During installation you create a regular user account. Remember this account. 
+(if you are using Debian as your regular workstation, make sure you have sudo installed and that you have 
+sudo access, then skip to Chapter 1.)
+(if you plan on using the `root` user directly, skip to Chapter 1. and run all commands directly, without sudo)
+
+WARNING!!!
+==========
+The toolchain is not available for newer versions of Debian, so you have to add 
+some URLs to get the proper packages.
+At the time of writing (2017-11-10) the dependencies can be resolved rather easily on Debian 8 and 9
+using additional packages from Debian 7 and Emdebian via available online resources. 
+
+You may want to comment out all `deb cdrom:` lines in /etc/apt/sources.list to use only online resources.
+
+Login as root into your new system and install sudo package:
+
+# apt-get install sudo
+
+Allow your regular user sudo access by adding it to the `sudo` group:
+
+# usermod -G sudo username
+
+If you have better facilities for console copy/paste via ssh client, rather then 
+the virtual machine console, determine it's IP address (might be dynamically allocated with each session)
+using the following command (as root):
+
+# ip a
+
+Look for the device `eth0` and the corresponding line starting with `inet`.
+Then use that IP address for your ssh client.
+
+
+---
+
 Chapter 1. Setting up the software tools
 
 ---
@@ -11,33 +70,63 @@ First, make sure that you have the software tools needed to compile the Linux Ke
 these if you don't have them already installed. To perform most of the operations below you should be logged
 as a user with super user rights on your Linux machine. Type in the terminal:
 
-# sudo su
+~ sudo su
 
 You will be prompted for your password and then your command line would start with # which means that you are
 now logged as the super user, all commands listed below should be executed in this mode.
+Alternatively, you may use the actual root account.
+
+Add the following to /etc/apt/sources.list :
+
+deb http://www.emdebian.org/debian jessie main
+deb http://www.emdebian.org/debian wheezy main
+deb http://www.emdebian.org/debian unstable main
+deb http://ftp.ro.debian.org/debian/ wheezy main
+
+Add the emdebian archive keys by typing: 
+
+# apt-get install emdebian-archive-keyring
 
 Next update apt-get links by typing:
 
 # apt-get update
 
+apt-get will complain about revoked keys:
+The error: REVKEYSIG B5B7720097BB3B58 Emdebian Archive Signing Key
+is correct, according to https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=796331 the Emdebian
+project was halted as of July 2014.
+It will also complain further on about packages with invalid signitures (due to revoked keys) 
+or packages deemed unsafe (also due to signigure problems). 
+You will have to ignore these warnings and proceed anyway to be able to set up you build tools.
+
+Next install the pre-requisites (from official Debian repositories):
+
+# apt-get install ncurses-dev build-essential git device-tree-compiler dosfstools bc
+
 Next install the same compiler toolchain that we used here by typing the following:
+(Note: older uboot-mkimage is now u-boot-tools)
 
-# apt-get install gcc-4.7-arm-linux-gnueabihf ncurses-dev uboot-mkimage build-essential git
+# apt-get install gcc-4.7-arm-linux-gnueabihf
+# apt-get install u-boot-tools
 
-This will install: GCC compiler used to compile the kernel; the kernel config menu; the uboot make image that
+This will install: GCC compiler used to compile the kernel; the kernel config menu; the u-boot make image that
 is required to allow the SD card to boot into the Linux image; GIT that allows you to download from the github
 which holds source code for some of the system; some other tools for building the kernel.
 
-Note that if you use debian may be you will need to add:
+You will have to to manually create these symlinks: 
 
-deb http://www.emdebian.org/debian squeeze main
-
-in the file below:
-
-/etc/apt/sources.list
+# ln -s /usr/bin/arm-linux-gnueabihf-cpp-4.7 /usr/bin/arm-linux-gnueabihf-cpp
+# ln -s /usr/bin/arm-linux-gnueabihf-gcc-4.7 /usr/bin/arm-linux-gnueabihf-gcc
+# ln -s /usr/bin/arm-linux-gnueabihf-gcc-ar-4.7 /usr/bin/arm-linux-gnueabihf-gcc-ar
+# ln -s /usr/bin/arm-linux-gnueabihf-gcc-nm-4.7 /usr/bin/arm-linux-gnueabihf-gcc-nm
+# ln -s /usr/bin/arm-linux-gnueabihf-gcc-ranlib-4.7 /usr/bin/arm-linux-gnueabihf-gcc-ranlib
+# ln -s /usr/bin/arm-linux-gnueabihf-gcov-4.7 /usr/bin/arm-linux-gnueabihf-gcov
 
 You would also need a torrent client. It is required to be able to download the file system. Any torrent
 client would do the job, as long as it can process .torrent files.
+For example:
+
+# apt-get install bittornado
 
 At this point you should have have all important tools to make your very own A20 kernel image!
 
@@ -87,7 +176,7 @@ If you don't apply the patch you might have severely reduced Gigabit Ethernet sp
 
 ---
 Note that the compiler version that the u-boot is built and tested is :
-arm-linux-gnueabihf-gcc (crosstool-NG linaro-1.13.1-4.9-2014.09 - Linaro GCC 4.9-2014.09) 4.9.2 20140904 (prerelease)
+arm-linux-gnueabihf-gcc (Debian 4.7.2-5) 4.7.2
 
 Now you have to load configuration file for your board. 
 because there are four different configurations for u-boot which depend on the exact board that you have. 
@@ -109,6 +198,12 @@ Go to ARM architecture -> and change mmc extra slot number to 2
 ESC ESC
 
 Save and Exit
+
+or
+
+# wget ..../A20-OLinuXino-Lime2___mmc.patch
+# patch -p1 < A20-OLinuXino-Lime2___mmc.patch
+
 
 ---
 
@@ -146,6 +241,11 @@ ESC ESC
 
 Save and Exit
 
+or
+
+# wget ..../A20-OLinuXino_MICRO___mmc.patch
+# patch -p1 < A20-OLinuXino_MICRO___mmc.patch
+
 
 ---
 
@@ -174,7 +274,7 @@ If you got these files everything is complete, well done so far
 
 # cd ..
 
-You should be in the following directory:
+You should be in the following directory (or similar according to your username):
 
 /home/user/a20-olimex#
 
@@ -192,13 +292,14 @@ You can download the latest kernel sources using the following command:
 
 # git clone https://github.com/linux-sunxi/linux-sunxi
 
+After the download navigate to the kernel directory:
+
+# cd linux-sunxi/
+
 You can switch to this exact commit with the next command:
 
 # git reset --hard 9a1cd034181af628d4145202289e1993c1687db6
 
-After the download navigate to the kernel directory:
-
-# cd linux-sunxi/
 
 ---
 
